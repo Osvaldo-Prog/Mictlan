@@ -60,7 +60,7 @@
                         <!-- Default configuration for running with: mvn clean javafx:run -->
                         <id>default-cli</id>
                         <configuration>
-                            <mainClass>org.example.mictlan_compilador/org.example.mictlan_compilador.HelloApplication
+                            <mainClass>org.example.mictlan_compilador/org.example.mictlan_compilador.MainApp
                             </mainClass>
                             <launcher>app</launcher>
                             <jlinkZipName>app</jlinkZipName>

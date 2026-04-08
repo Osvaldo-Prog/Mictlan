@@ -6,13 +6,14 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 
 import java.io.IOException;
+import java.util.EventListener;
 
-public class HelloApplication extends Application {
+public class MainApp extends Application {
     @Override
     public void start(Stage stage) throws IOException {
-        FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("/Views/MainView.fxml"));
+        FXMLLoader fxmlLoader = new FXMLLoader(MainApp.class.getResource("/Views/MainView.fxml"));
         Scene scene = new Scene(fxmlLoader.load());
-        stage.setTitle("Mictlán!");
+        stage.setTitle("Mictlán");
         stage.setScene(scene);
         stage.show();
     }
