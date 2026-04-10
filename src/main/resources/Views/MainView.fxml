@@ -60,7 +60,7 @@
                   </StackPane>
                   <VBox prefHeight="427.0" prefWidth="150.0" spacing="125.0">
                      <children>
-                        <Button mnemonicParsing="false" onAction="#tokenizar" prefHeight="36.0" prefWidth="107.0" style="-fx-background-radius: 8; -fx-border-radius: 8; -fx-background-color: #05fa53;" text="Compilar">
+                        <Button mnemonicParsing="false" onAction="#Compilar" prefHeight="36.0" prefWidth="107.0" style="-fx-background-radius: 8; -fx-border-radius: 8; -fx-background-color: #05fa53;" text="Compilar">
                            <font>
                               <Font name="Bell MT Bold" size="16.0" />
                            </font>
@@ -68,7 +68,7 @@
                               <FontAwesomeIcon glyphName="BACKWARD" rotate="180.0" />
                            </graphic>
                         </Button>
-                        <Button mnemonicParsing="false" prefHeight="36.0" prefWidth="107.0" style="-fx-background-radius: 8; -fx-border-radius: 8; -fx-background-color: #fa8c05;" text="Tabla">
+                        <Button mnemonicParsing="false" onAction="#mostrarTabla" prefHeight="36.0" prefWidth="107.0" style="-fx-background-radius: 8; -fx-border-radius: 8; -fx-background-color: #fa8c05;" text="Tabla">
                            <font>
                               <Font name="Bell MT Bold" size="16.0" />
                            </font>
