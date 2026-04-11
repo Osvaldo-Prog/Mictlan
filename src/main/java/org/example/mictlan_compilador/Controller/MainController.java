@@ -2,7 +2,10 @@ package org.example.mictlan_compilador.Controller;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.paint.Color;
@@ -10,6 +13,7 @@ import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import org.example.mictlan_compilador.Modelo.Simbolo;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -28,30 +32,35 @@ public class MainController {
     private TextArea txtConsola;
     @FXML
     private TextFlow txtFlow;
+    /*
+    lista para la tbala de simbolos
+     */
+    public List<Simbolo> tablaSimbolos = new ArrayList<>();
 
     private List<String> tokens = new ArrayList<>();
     /*Contexto de las palabras en nahuatl y su signfificado
      * quema = si -> Para el condicional "if"
      * tzictli = goma de mascar -> para el ciclo "for" por la terminología de que lo mascaras hasta que se acabe su sabor, el for acaba hasta que cumpla una condición*/
-    private List<String> reservadas = Arrays.asList("tzictli", "while", "do", "try", "catch", "return", "quema", "else");
+    public List<String> reservadas = Arrays.asList("tzictli", "while", "do", "try", "catch", "return", "quema", "else");
+    //lista de operadores
+    public List<String> operadores = Arrays.asList("+", "-", "*", "/", "=", "<", ">", "(", ")", "{", "}", ";");
 
     //este metodo se ejecuta cada que inicia el programa
     @FXML
     private void initialize() {
         //Para agregar las palabras en el randomfile
-        try{
+        try {
             RandomAccessFile randomAccessFile = new RandomAccessFile("Tabla de simbolos.dat", "rw");
-            if (randomAccessFile.length() == 0){//Si esta vacio escribirá
-                List<String> reservadas = Arrays.asList("tzictli", "while", "do", "try", "catch", "return", "quema", "else");
-                for (String item : reservadas){
+            if (randomAccessFile.length() == 0) {//Si esta vacio escribirá
+                List<String> reservadas = Arrays.asList("tzictli", "while", "do", "try", "catch", "return", "quema", "if", "else");
+                for (String item : reservadas) {
                     randomAccessFile.writeUTF(item);
                 }
             }
             randomAccessFile.close();
-        }catch(Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
-
 
 
         txtConsola.setEditable(false);
@@ -130,7 +139,7 @@ public class MainController {
             //        [0,1,2,3] siendo h=0, o=1, l=2, a=3
             char letra = codigo.charAt(i);
 
-            if (Character.isLetterOrDigit(letra)) {
+            if (Character.isLetterOrDigit(letra) || letra == '.') {
                 actual += letra;
             } else {
                 if (!actual.isEmpty()) {
@@ -150,4 +159,226 @@ public class MainController {
         txtConsola.clear();
         txtConsola.setText(tokens.toString());
     }
+
+    /// /////////////////
+
+
+    @FXML
+    private void mostrarTabla() {
+
+        try {
+            FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/Views/TablaSimbolos.fxml"));
+            Parent root = fxmlLoader.load();
+            //obtener el controlador de la clase de la tabla de simbolos
+            ControllerTablaSimbolos controllerTablaSimbolos = fxmlLoader.getController();
+            //llenar la tabla con la lista de esta clase
+            controllerTablaSimbolos.setTablaSimbolos(tablaSimbolos);
+
+            Scene scene = new Scene(root);
+            Stage stage = new Stage();
+            stage.setScene(scene);
+            stage.setTitle("Tabla de simbolos");
+            stage.show();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    /// //////////////////
+
+    @FXML
+    private void Compilar() {
+        tokenizar();
+        analizarTokens();
+    }
+
+    ///  //////////////////////
+
+    private void analizarTokens() {
+
+        tablaSimbolos.clear();
+        txtConsola.clear();
+        int id = 1;
+
+
+        // agregar palabras reservadas
+        for (String reservada : reservadas) {
+            tablaSimbolos.add(new Simbolo(id++, reservada));
+        }
+
+        //Para las reservadas
+        for (int i = 0; i < tokens.size(); i++) {
+
+            String token = tokens.get(i);
+            if (reservadas.contains(token)) {
+
+                String res = token + " -- RESERVADA";
+                txtConsola.appendText(res + "\n");
+
+                boolean existe = false;
+                for (Simbolo s : tablaSimbolos) {
+                    if (s.getPalabra().equals(token)) {
+                        existe = true;
+                        break;
+                    }
+                }
+
+                if (!existe) {
+                    tablaSimbolos.add(new Simbolo(id++, token));
+                }
+            }
+
+            // validar identificadores
+            if (Afd_identidicadores(token)) {
+
+                String res = token + " -- IDENTIFICADOR";
+                txtConsola.appendText(res + "\n");
+
+                boolean existe = false;
+
+                for (Simbolo s : tablaSimbolos) {
+                    if (s.getPalabra().equals(token)) {
+                        existe = true;
+                        break;
+                    }
+                }
+
+                if (!existe) {
+                    tablaSimbolos.add(new Simbolo(id++, token));
+                }
+
+                // validar numeros
+            } else if (Afd_numeros(token)) {
+
+                String res = token + " -- NUMERO";
+                txtConsola.appendText(res + "\n");
+
+                boolean existe = false;
+
+                for (Simbolo s : tablaSimbolos) {
+                    if (s.getPalabra().equals(token)) {
+                        existe = true;
+                        break;
+                    }
+                }
+
+                if (!existe) {
+                    tablaSimbolos.add(new Simbolo(id++, token));
+                }
+
+                // validar operadores
+            } else if (operadores.contains(token)) {
+
+                String res = token + " -- OPERADOR";
+                txtConsola.appendText(res + "\n");
+
+                boolean existe = false;
+
+                for (Simbolo s : tablaSimbolos) {
+                    if (s.getPalabra().equals(token)) {
+                        existe = true;
+                        break;
+                    }
+                }
+
+                if (!existe) {
+                    tablaSimbolos.add(new Simbolo(id++, token));
+                }
+            } else {
+
+                txtConsola.appendText(token + " -- ERROR\n");
+            }
+        }
+    }
+
+    /// /////////////////////////////
+
+    private boolean Afd_identidicadores(String token) {
+
+        // for (int i=0; i<tokens.size(); i++){
+        boolean esValido = true;
+        // String token = tokens.get(i);
+        for (int j = 0; j < token.length(); j++) {
+            char c = token.charAt(j);
+            if (j == 0) {
+                if (Character.isLetter(c) || c == '$' || c == '_') {
+                    System.out.println(" identificadores pasa a q1");
+
+                } else {
+                    System.out.println(" identificadores pasa a q2, error");
+                    esValido = false;
+                    break;
+                }
+            } else {
+                if (Character.isLetter(c) || c == '$' || c == '_' || Character.isDigit(c)) {
+                    System.out.println(" identificadores pasa a q1");
+
+                } else {
+                    System.out.println(" identificadores pasa a q2, error");
+                    esValido = false;
+                    break;
+                }
+            }
+
+        }
+            /*if (esValido){
+                System.out.println(token + "IDENTIFICADOR");
+                tablaSimbolos.add(token + "IDENTIFICADOR");
+            }else{
+                System.out.println(token + "ERROR");
+            }*/
+        //}
+        return esValido;
+    }
+
+    public boolean Afd_numeros(String token) {
+        //for (int i=0; i<tokens.size(); i++) {
+        boolean tienePunto = false;
+        boolean esValido = true;
+        // String token = tokens.get(i);
+        for (int j = 0; j < token.length(); j++) {
+            char c = token.charAt(j);
+            if (j == 0) {
+                if (Character.isDigit(c)) {
+                    System.out.println("numero pasa a q1 correcto");
+                } else {
+                    System.out.println("numero pasa a q3 error");
+                    esValido = false;
+                    break;
+                }
+            } else {
+                if (Character.isDigit(c)) {
+                    System.out.println("numero se queda en q1 correcto");
+                } else if (c == '.') {
+                    if (tienePunto == false) {
+                        tienePunto = true;
+                        System.out.println("numero se pasa a q2 correcto");
+                    } else {
+                        System.out.println("numero eeror hay dos puntos");
+                        esValido = false;
+                        break;
+                    }
+
+                } else {
+                    System.out.println("numero se pasa a q3 error");
+                    esValido = false;
+                    break;
+                }
+            }
+        }
+        if (tienePunto && token.charAt(token.length() - 1) == '.') {
+            esValido = false;
+        }
+          /*  if (esValido){
+                System.out.println(token + "NUMERO");
+                tablaSimbolos.add(token + "NUMERO");
+            }else{
+                System.out.println(token + "ERROR NO ES NUMERO");
+            }
+        //}*/
+        return esValido;
+    }
+
+
 }
