@@ -8,4 +8,5 @@ module org.example.mictlan_compilador {
     exports org.example.mictlan_compilador;
     exports org.example.mictlan_compilador.Controller;
     opens org.example.mictlan_compilador.Controller to javafx.fxml;
+    opens org.example.mictlan_compilador.Modelo to javafx.base;
 }
