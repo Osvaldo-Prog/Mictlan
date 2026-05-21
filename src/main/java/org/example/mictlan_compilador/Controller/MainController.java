@@ -39,9 +39,9 @@ public class MainController {
 
     private List<String> tokens = new ArrayList<>();
     /*Contexto de las palabras en nahuatl y su signfificado
-     * quema = si -> Para el condicional "if"
-     * tzictli = goma de mascar -> para el ciclo "for" por la terminología de que lo mascaras hasta que se acabe su sabor, el for acaba hasta que cumpla una condición*/
-    public List<String> reservadas = Arrays.asList("tzictli", "while", "do", "try", "catch", "return", "quema", "else");
+     * tla = si -> Para el condicional "if"
+     * neneuhca = goma de mascar -> para el ciclo "for" por la terminología de que lo mascaras hasta que se acabe su sabor, el for acaba hasta que cumpla una condición*/
+    public List<String> reservadas = Arrays.asList("neneuhca", "ixquichca", "calpulli", "macehualtin", "ichtaca", "tla", "tlanamo", "nen", "cuepa", "tlapohualli", "tlatolli");
     //lista de operadores
     public List<String> operadores = Arrays.asList("+", "-", "*", "/", "=", "<", ">", "(", ")", "{", "}", ";");
 
@@ -51,11 +51,22 @@ public class MainController {
         //Para agregar las palabras en el randomfile
         try {
             RandomAccessFile randomAccessFile = new RandomAccessFile("Tabla de simbolos.dat", "rw");
-            if (randomAccessFile.length() == 0) {//Si esta vacio escribirá
-                List<String> reservadas = Arrays.asList("tzictli", "while", "do", "try", "catch", "return", "quema", "if", "else");
-                for (String item : reservadas) {
-                    randomAccessFile.writeUTF(item);
+            for (String item : reservadas) {
+                int posicion = hash(item);
+                randomAccessFile.seek(posicion * 50);
+
+                // Verificar si ya hay algo escrito en esa posición
+                String existente = randomAccessFile.readUTF();
+                if (!existente.isEmpty() && !existente.equals(item)) {
+                    // HAY COLISIÓN - lo mostramos en consola
+                    System.out.println("COLISIÓN: " + item + " choca con " + existente + " en posición " + posicion);
+                    // Mover a la siguiente posición libre (sondeo lineal)
+                    posicion = posicion + 1;
+                    randomAccessFile.seek(posicion * 50);
                 }
+
+                randomAccessFile.seek(posicion * 50);
+                randomAccessFile.writeUTF(item);
             }
             randomAccessFile.close();
         } catch (Exception e) {
@@ -191,6 +202,7 @@ public class MainController {
     private void Compilar() {
         tokenizar();
         analizarTokens();
+        analizarSintaxis();
     }
 
     ///  //////////////////////
@@ -380,5 +392,152 @@ public class MainController {
         return esValido;
     }
 
+    //Metodo para analizar la sintaxis
+    private void analizarSintaxis() {
+        int i = 0;
+        boolean hayErrores = false;
+
+        while (i < tokens.size()) {
+            String tok = tokens.get(i);
+
+            // -- Declaración: tipo id = valor ;
+            if (tok.equals("tlapohualli") || tok.equals("tlatolli")) {
+                if (i + 4 < tokens.size()
+                        && Afd_identidicadores(tokens.get(i + 1))
+                        && tokens.get(i + 2).equals("=")
+                        && tokens.get(i + 4).equals(";")) {
+                    txtConsola.appendText("Declaración válida: " + tokens.get(i + 1) + "\n");
+                    i += 5;
+                } else {
+                    txtConsola.appendText("Error en declaración cerca de: " + tok + "\n");
+                    hayErrores = true;
+                    i++;
+                }
+
+                // -- Condicional: tla ( id op valor ) { ... } [tlanamo { ... }]
+            } else if (tok.equals("tla")) {
+                int resultado = verificarBloque(i, "tla");
+                if (resultado > i) {
+                    int siguiente = resultado;
+                    // ¿Hay tlanamo?
+                    if (siguiente < tokens.size() && tokens.get(siguiente).equals("tlanamo")) {
+                        int res2 = verificarBloqueSimple(siguiente + 1, "tlanamo");
+                        if (res2 > siguiente) {
+                            txtConsola.appendText("tla / tlanamo válido\n");
+                            i = res2;
+                        } else {
+                            txtConsola.appendText("Error en bloque tlanamo\n");
+                            hayErrores = true;
+                            i = siguiente + 1;
+                        }
+                    } else {
+                        txtConsola.appendText("Condicional tla válido\n");
+                        i = resultado;
+                    }
+                } else {
+                    txtConsola.appendText("Error en condicional tla\n");
+                    hayErrores = true;
+                    i++;
+                }
+
+                // ── Ciclo: neneuhca ( id op valor ) { ... }
+            } else if (tok.equals("neneuhca")) {
+                int resultado = verificarBloque(i, "neneuhca");
+                if (resultado > i) {
+                    txtConsola.appendText("Ciclo neneuhca válido\n");
+                    i = resultado;
+                } else {
+                    txtConsola.appendText("Error en ciclo neneuhca\n");
+                    hayErrores = true;
+                    i++;
+                }
+
+                // ── Asignación simple: id = valor ;
+            } else if (Afd_identidicadores(tok) && !reservadas.contains(tok)) {
+                if (i + 3 < tokens.size()
+                        && tokens.get(i + 1).equals("=")
+                        && tokens.get(i + 3).equals(";")) {
+                    txtConsola.appendText("Asignación válida: " + tok + "\n");
+                    i += 4;
+                } else {
+                    txtConsola.appendText("Error en asignación: " + tok + "\n");
+                    hayErrores = true;
+                    i++;
+                }
+
+                // ── Retorno: cuepa valor ;
+            } else if (tok.equals("cuepa")) {
+                if (i + 2 < tokens.size() && tokens.get(i + 2).equals(";")) {
+                    txtConsola.appendText("Retorno válido\n");
+                    i += 3;
+                } else {
+                    txtConsola.appendText("Error en cuepa, falta ';'\n");
+                    hayErrores = true;
+                    i++;
+                }
+
+            } else {
+                i++; // token no reconocido como inicio de sentencia, saltar
+            }
+        }
+
+        if (!hayErrores) {
+            txtConsola.appendText("\nSintaxis correcta\n");
+        } else {
+            txtConsola.appendText("\nSe encontraron errores de sintaxis\n");
+        }
+    }
+
+    /**
+     * Verifica: palabra ( id op valor )
+     * Retorna el índice siguiente al bloque si es válido, o el mismo i si no.
+     */
+    private int verificarBloque(int i, String nombre) {
+        List<String> ops = Arrays.asList("<", ">", "=", "<=", ">=", "!=");
+        // ( id op valor )
+        if (i + 5 >= tokens.size()) return i;
+        if (!tokens.get(i + 1).equals("(")) return i;
+        if (!Afd_identidicadores(tokens.get(i + 2)) && !Afd_numeros(tokens.get(i + 2))) return i;
+        if (!ops.contains(tokens.get(i + 3))) return i;
+        if (!Afd_identidicadores(tokens.get(i + 4)) && !Afd_numeros(tokens.get(i + 4))) return i;
+        if (!tokens.get(i + 5).equals(")")) return i;
+
+        // { ... }
+        return verificarBloqueSimple(i + 6, nombre);
+    }
+
+    /**
+     * Verifica: (contenido interno ya validado recursivamente)
+     * Retorna índice tras el cierre '}', o i si falla.
+     */
+    private int verificarBloqueSimple(int i, String nombre) {
+        if (i >= tokens.size() || !tokens.get(i).equals("{")) return i - 1;
+        int profundidad = 1;
+        int j = i + 1;
+        while (j < tokens.size() && profundidad > 0) {
+            if (tokens.get(j).equals("{")) profundidad++;
+            else if (tokens.get(j).equals("}")) profundidad--;
+            j++;
+        }
+        if (profundidad != 0) return i; // falta cierre
+        return j; // índice después del '}'
+    }
+
+    // Función HASH - convierte un token en una posición numérica
+    //recorre letra por letra el token y va calculando un número
+    /*
+    "tla"
+    t = 116  → 0 * 31 + 116 = 116
+    l = 108  → 116 * 31 + 108 = 3704
+    a = 97   → 3704 * 31 + 97 = 114921
+    114921 % 101 = 45  ← posición en el archivo*/
+    private int hash(String token) {
+        int resultado = 0;
+        for (int i = 0; i < token.length(); i++) {
+            resultado = resultado * 31 + token.charAt(i);
+        }
+        // El % 101 limita el resultado entre 0 y 100 (tamaño de la tabla)
+        return Math.abs(resultado % 101);
+    }
 
 }
