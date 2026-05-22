@@ -46,60 +46,108 @@ public class MainController {
     public List<String> operadores = Arrays.asList("+", "-", "*", "/", "=", "<", ">", "(", ")", "{", "}", ";");
 
     //este metodo se ejecuta cada que inicia el programa
+    /**
+     * Método de inicialización del controlador JavaFX.
+     * Se ejecuta automáticamente al cargar la pantalla.
+     * Realiza dos tareas principales:
+     * 1-> Carga las palabras reservadas en una tabla hash con archivo de acceso aleatorio.
+     * 2-> Activa el resaltado de sintaxis en tiempo real en el editor de texto.
+     */
     @FXML
     private void initialize() {
-        //Para agregar las palabras en el randomfile
+        //Parte 1: tabla de simbolos (Hash + Archivo de acceso aleatorio)
         try {
+            // Abre o crea el archivo binario donde se almacenan las palabras reservadas
+            // "rw" significa que se puede leer y escribir
             RandomAccessFile randomAccessFile = new RandomAccessFile("Tabla de simbolos.dat", "rw");
+
+            // Recorre todas las palabras reservadas del lenguaje (if, while, for, etc.) -> (en este caso son las que estan en la lista "reservadas")
             for (String item : reservadas) {
+
+                //Calcula la posición en el archivo usando la función hash
+                //cada celda ocupa 50 bytes, por eso se multiplica por 50
                 int posicion = hash(item);
                 randomAccessFile.seek(posicion * 50);
 
-                // Verificar si ya hay algo escrito en esa posición
+                // Lee lo que hay actualmente en esa posición del archivo
                 String existente = randomAccessFile.readUTF();
+
+                // Si ya hay una palabra diferente en esa posición = colisión
+                //ocurre cuando dos palabras diferentes generan el mismo hash
                 if (!existente.isEmpty() && !existente.equals(item)) {
-                    // HAY COLISIÓN - lo mostramos en consola
                     System.out.println("COLISIÓN: " + item + " choca con " + existente + " en posición " + posicion);
-                    // Mover a la siguiente posición libre (sondeo lineal)
+
+                    // Resolución de colisión por sondeo lienal:
+                    // simplemente se mueve a la siguiente posición disponible
+                    //.seek = indicarle que se moverá
                     posicion = posicion + 1;
                     randomAccessFile.seek(posicion * 50);
                 }
 
+                // Escribe la palabra reservada en su posición final del archivo
                 randomAccessFile.seek(posicion * 50);
                 randomAccessFile.writeUTF(item);
             }
+
+            //se debe de cerrar el archivo de acceso aleatorio
             randomAccessFile.close();
+
         } catch (Exception e) {
+            // Si ocurre cualquier error con el archivo, lo muestra en consola
             e.printStackTrace();
         }
 
+        //---------------------------------------------
+        // parte 2 -> config, del editor de texto
 
+        // La consola no debe ser editable por el usuario, el lado derecho de la interfaz
         txtConsola.setEditable(false);
+
+        // El panel de texto con colores no debe recibir foco ni clics del mouse ya que este es solo decorativo y donde se pueden pintar las palabras
+        // ya que es solo visual, el usuario escribe en txtArea
         txtFlow.setFocusTraversable(false);
         txtFlow.setMouseTransparent(true);
 
+        // Listener que se activa cada vez que el usuario escribe en el editor de texto
         txtArea.textProperty().addListener((obs, oldText, newText) -> {
+
+            // Limpia el panel visual por si se quedó algo
             txtFlow.getChildren().clear();
 
-            // Dividimos por líneas para respetar los enters
-            String[] lineas = newText.split("\n", -1); // -1 para incluir líneas vacías al final
+            // Divide el texto por líneas para respetar los saltos de línea (Enter)
+            // El -1 asegura que las líneas vacías al final también se incluyan
+            String[] lineas = newText.split("\n", -1);
 
+            //ciclo para recorrer linea por linea lo que escribió el usuario
             for (int i = 0; i < lineas.length; i++) {
-                String[] tokens = lineas[i].split(" "); // separa por espacios dentro de la línea
 
+                // Divide cada línea por espacios para obtener tokens individuales
+                String[] tokens = lineas[i].split(" ");
+
+                //recorre el arreglo de tokens recién creado
                 for (String token : tokens) {
-                    if (token.isEmpty()) continue; // evita tokens vacíos
-                    Text txt = new Text(token + " "); // agregamos espacio entre palabras
+
+                    // Ignora espacios vacíos que puedan surgir al dividir
+                    if (token.isEmpty()) continue;
+
+                    // Crea un elemento de texto visual con espacio al final
+                    Text txt = new Text(token + " ");
+
+                    // Si el token es una palabra reservada, se resalta
+                    // con color aguamarina y negritas (como en un IDE)
                     if (reservadas.contains(token)) {
                         txt.setFill(Color.AQUAMARINE);
                         txt.setStyle("-fx-font-weight: bold");
                     } else {
+                        // Si no es reservada, se muestra en color blanco normal
                         txt.setFill(Color.WHITE);
                     }
+
+                    // Agrega el texto al panel visual ya que aqui si se pueden pintar palabras, en el textArea no
                     txtFlow.getChildren().add(txt);
                 }
 
-                // Agregamos salto de línea después de cada línea
+                // Agrega salto de línea entre líneas (excepto la última)
                 if (i < lineas.length - 1) {
                     txtFlow.getChildren().add(new Text("\n"));
                 }
@@ -526,6 +574,7 @@ public class MainController {
     // Función HASH - convierte un token en una posición numérica
     //recorre letra por letra el token y va calculando un número
     /*
+    ejemplo
     "tla"
     t = 116  → 0 * 31 + 116 = 116
     l = 108  → 116 * 31 + 108 = 3704

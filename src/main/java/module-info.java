@@ -3,7 +3,6 @@ module org.example.mictlan_compilador {
     requires javafx.fxml;
     requires javafx.base;
     requires javafx.graphics;
-    requires org.fxmisc.richtext;
 
     opens org.example.mictlan_compilador to javafx.fxml;
     exports org.example.mictlan_compilador;
