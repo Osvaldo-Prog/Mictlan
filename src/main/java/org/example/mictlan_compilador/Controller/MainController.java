@@ -46,6 +46,7 @@ public class MainController {
     public List<String> operadores = Arrays.asList("+", "-", "*", "/", "=", "<", ">", "(", ")", "{", "}", ";");
 
     //este metodo se ejecuta cada que inicia el programa
+
     /**
      * Método de inicialización del controlador JavaFX.
      * Se ejecuta automáticamente al cargar la pantalla.
@@ -55,47 +56,6 @@ public class MainController {
      */
     @FXML
     private void initialize() {
-        //Parte 1: tabla de simbolos (Hash + Archivo de acceso aleatorio)
-        try {
-            // Abre o crea el archivo binario donde se almacenan las palabras reservadas
-            // "rw" significa que se puede leer y escribir
-            RandomAccessFile randomAccessFile = new RandomAccessFile("Tabla de simbolos.dat", "rw");
-
-            // Recorre todas las palabras reservadas del lenguaje (if, while, for, etc.) -> (en este caso son las que estan en la lista "reservadas")
-            for (String item : reservadas) {
-
-                //Calcula la posición en el archivo usando la función hash
-                //cada celda ocupa 50 bytes, por eso se multiplica por 50
-                int posicion = hash(item);
-                randomAccessFile.seek(posicion * 50);
-
-                // Lee lo que hay actualmente en esa posición del archivo
-                String existente = randomAccessFile.readUTF();
-
-                // Si ya hay una palabra diferente en esa posición = colisión
-                //ocurre cuando dos palabras diferentes generan el mismo hash
-                if (!existente.isEmpty() && !existente.equals(item)) {
-                    System.out.println("COLISIÓN: " + item + " choca con " + existente + " en posición " + posicion);
-
-                    // Resolución de colisión por sondeo lienal:
-                    // simplemente se mueve a la siguiente posición disponible
-                    //.seek = indicarle que se moverá
-                    posicion = posicion + 1;
-                    randomAccessFile.seek(posicion * 50);
-                }
-
-                // Escribe la palabra reservada en su posición final del archivo
-                randomAccessFile.seek(posicion * 50);
-                randomAccessFile.writeUTF(item);
-            }
-
-            //se debe de cerrar el archivo de acceso aleatorio
-            randomAccessFile.close();
-
-        } catch (Exception e) {
-            // Si ocurre cualquier error con el archivo, lo muestra en consola
-            e.printStackTrace();
-        }
 
         //---------------------------------------------
         // parte 2 -> config, del editor de texto
@@ -430,46 +390,63 @@ public class MainController {
         if (tienePunto && token.charAt(token.length() - 1) == '.') {
             esValido = false;
         }
-          /*  if (esValido){
-                System.out.println(token + "NUMERO");
-                tablaSimbolos.add(token + "NUMERO");
-            }else{
-                System.out.println(token + "ERROR NO ES NUMERO");
-            }
-        //}*/
         return esValido;
     }
 
     //Metodo para analizar la sintaxis
     private void analizarSintaxis() {
+        //variable auxiliar para moverse por la lista/arreglo de tokens
         int i = 0;
+        //Variable boleana para detecetar errores
         boolean hayErrores = false;
 
         while (i < tokens.size()) {
             String tok = tokens.get(i);
 
             // -- Declaración: tipo id = valor ;
-            if (tok.equals("tlapohualli") || tok.equals("tlatolli")) {
-                if (i + 4 < tokens.size()
-                        && Afd_identidicadores(tokens.get(i + 1))
-                        && tokens.get(i + 2).equals("=")
-                        && tokens.get(i + 4).equals(";")) {
+            if (i + 4 < tokens.size()
+                    && Afd_identidicadores(tokens.get(i + 1)) //posicion de la lista/arreglo del token/linea
+                    && tokens.get(i + 2).equals("=")
+                    && tokens.get(i + 4).equals(";")) {
+                /*variable boleana para saber si el valor asignado coincide
+                 con el tipo de dato declarado*/
+                boolean valorValido = false;
+
+                /*Si la delcaracion es de tipo numerico (tlapohualli)
+                el valor debe de er reconocido por el AFD de numeros*/
+                if (tok.equals("tlapohualli")) {
+                    valorValido = Afd_numeros(tokens.get(i + 3));
+                    /*Si es de tipo tlatolli (texto)
+                     * debe de ser reconocido por el AFD de identificadores*/
+                } else if (tok.equals("tlatolli")) {
+                    valorValido = Afd_identidicadores(tokens.get(i + 3));
+                }
+
+                /*Si el valor corresponde al tipo declarado entonces es una declaracion valida*/
+                if (valorValido) {
                     txtConsola.appendText("Declaración válida: " + tokens.get(i + 1) + "\n");
-                    i += 5;
+                    i += 5; //este =+ 5 hace que se salte a la siguiente declaracion de variable
+                    /*Si no es reconocido pues marca error*/
                 } else {
-                    txtConsola.appendText("Error en declaración cerca de: " + tok + "\n");
+                    txtConsola.appendText("Error de tipo en declaración: " + tokens.get(i + 1) + "\n");
                     hayErrores = true;
                     i++;
                 }
 
-                // -- Condicional: tla ( id op valor ) { ... } [tlanamo { ... }]
+
             } else if (tok.equals("tla")) {
+                /*verifica la estructura del bloque tla y devuelve el indice despues del cierre*/
                 int resultado = verificarBloque(i, "tla");
+                /*Si el resultado es mayor que i significa que el bloque
+                 * fue reconocido correctamnete*/
                 if (resultado > i) {
+                    /*Se guarda la posicion donde termino el bloque*/
                     int siguiente = resultado;
-                    // ¿Hay tlanamo?
+                    // verificar si hay mas (tlanamo/else)
                     if (siguiente < tokens.size() && tokens.get(siguiente).equals("tlanamo")) {
+                        /*verificar el bloque tlanamo tenga llaves de apertura y cierre*/
                         int res2 = verificarBloqueSimple(siguiente + 1, "tlanamo");
+                        //lo mismo que antes, si debuelve mayor a siguiente pues es valido
                         if (res2 > siguiente) {
                             txtConsola.appendText("tla / tlanamo válido\n");
                             i = res2;
@@ -488,9 +465,11 @@ public class MainController {
                     i++;
                 }
 
-                // ── Ciclo: neneuhca ( id op valor ) { ... }
+                // Ciclo: neneuhca (condicion)
             } else if (tok.equals("neneuhca")) {
+                /*verfica la condicion y el bloque */
                 int resultado = verificarBloque(i, "neneuhca");
+                //lo mismo, si el resultado es mayor a i es valido
                 if (resultado > i) {
                     txtConsola.appendText("Ciclo neneuhca válido\n");
                     i = resultado;
@@ -500,12 +479,15 @@ public class MainController {
                     i++;
                 }
 
-                // ── Asignación simple: id = valor ;
+                // Asignación simple: id = valor ;
             } else if (Afd_identidicadores(tok) && !reservadas.contains(tok)) {
                 if (i + 3 < tokens.size()
                         && tokens.get(i + 1).equals("=")
                         && tokens.get(i + 3).equals(";")) {
                     txtConsola.appendText("Asignación válida: " + tok + "\n");
+                    /*se salta:
+                     * id = valor;
+                     * (4 tokens)*/
                     i += 4;
                 } else {
                     txtConsola.appendText("Error en asignación: " + tok + "\n");
@@ -513,7 +495,7 @@ public class MainController {
                     i++;
                 }
 
-                // ── Retorno: cuepa valor ;
+                // Retorno: cuepa valor ;
             } else if (tok.equals("cuepa")) {
                 if (i + 2 < tokens.size() && tokens.get(i + 2).equals(";")) {
                     txtConsola.appendText("Retorno válido\n");
@@ -541,16 +523,20 @@ public class MainController {
      * Retorna el índice siguiente al bloque si es válido, o el mismo i si no.
      */
     private int verificarBloque(int i, String nombre) {
+        //Lista de operadores relacionales validos en las condiciones
         List<String> ops = Arrays.asList("<", ">", "=", "<=", ">=", "!=");
-        // ( id op valor )
+        // Verifica que existan suficnetes tokens para la condicion
+        // estructura esperada: (id, operador, valor)
         if (i + 5 >= tokens.size()) return i;
-        if (!tokens.get(i + 1).equals("(")) return i;
-        if (!Afd_identidicadores(tokens.get(i + 2)) && !Afd_numeros(tokens.get(i + 2))) return i;
-        if (!ops.contains(tokens.get(i + 3))) return i;
-        if (!Afd_identidicadores(tokens.get(i + 4)) && !Afd_numeros(tokens.get(i + 4))) return i;
+        //verifica el parentesis de apertura
+        if (!tokens.get(i + 1).equals("("))
+        if (!Afd_identidicadores(tokens.get(i + 2)) && !Afd_numeros(tokens.get(i + 2))) return i; //veridica operando de lado izquierdo (identificador o numero)
+        if (!ops.contains(tokens.get(i + 3))) return i; //verificar operador relacional,
+        if (!Afd_identidicadores(tokens.get(i + 4)) && !Afd_numeros(tokens.get(i + 4))) return i; // verificar operdor derecho (idenfitifacor o numero)
+        //verifica parentesis de cierre
         if (!tokens.get(i + 5).equals(")")) return i;
 
-        // { ... }
+        // si la condicion es correcta verifica { }
         return verificarBloqueSimple(i + 6, nombre);
     }
 
@@ -559,34 +545,22 @@ public class MainController {
      * Retorna índice tras el cierre '}', o i si falla.
      */
     private int verificarBloqueSimple(int i, String nombre) {
+        //verificar llave de apertura
         if (i >= tokens.size() || !tokens.get(i).equals("{")) return i - 1;
+        //comtador para controlar bloques anidados
         int profundidad = 1;
+        //comeinza despues de la primera llave
         int j = i + 1;
         while (j < tokens.size() && profundidad > 0) {
+            //si a]encuetra otra llave de apertura aumenta la profundidad
             if (tokens.get(j).equals("{")) profundidad++;
+            //si encuentra una de cierre la profundidad disminuye
             else if (tokens.get(j).equals("}")) profundidad--;
             j++;
         }
-        if (profundidad != 0) return i; // falta cierre
-        return j; // índice después del '}'
+        //si la profundidad no regreso a 0 falta llavesn llaves de cierre
+        if (profundidad != 0) return i;
+        //regresa la posiciond e la ultima llave
+        return j;
     }
-
-    // Función HASH - convierte un token en una posición numérica
-    //recorre letra por letra el token y va calculando un número
-    /*
-    ejemplo
-    "tla"
-    t = 116  → 0 * 31 + 116 = 116
-    l = 108  → 116 * 31 + 108 = 3704
-    a = 97   → 3704 * 31 + 97 = 114921
-    114921 % 101 = 45  ← posición en el archivo*/
-    private int hash(String token) {
-        int resultado = 0;
-        for (int i = 0; i < token.length(); i++) {
-            resultado = resultado * 31 + token.charAt(i);
-        }
-        // El % 101 limita el resultado entre 0 y 100 (tamaño de la tabla)
-        return Math.abs(resultado % 101);
-    }
-
 }
